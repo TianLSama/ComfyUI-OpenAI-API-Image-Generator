@@ -142,6 +142,38 @@ function localizeCombos(node) {
   for (const name of LOCALIZED_COMBOS) localizeCombo(node, name);
 }
 
+// v0.3.2：控件中文显示名。只改 widget.label（litegraph 渲染优先取 label），
+// name/序列化值/服务端校验全部不动——纯显示层，旧工作流零影响。
+// 括号里保留后端字段名，方便对照 params JSON 键名与排错检索。
+const ZH_WIDGET_LABELS = {
+  base_url: "服务地址 (base_url)",
+  api_key: "API 密钥 (api_key)",
+  model: "模型 (model)",
+  prompt: "提示词 (prompt)",
+  system_prompt: "系统提示词 (system_prompt)",
+  params: "高级参数 JSON (params)",
+  protocol: "协议 (protocol)",
+  size: "图片尺寸 (size)",
+  quality: "质量 (quality)",
+  output_format: "输出格式 (output_format)",
+  background: "背景 (background)",
+  moderation: "审核等级 (moderation)",
+  negative_prompt: "负面提示词 (negative_prompt)",
+  count: "生成数量 (count)",
+};
+
+function localizeLabels(node) {
+  try {
+    for (const w of node.widgets ?? []) {
+      const label = ZH_WIDGET_LABELS[w.name];
+      // 仅当 label 尚未设置或仍等于内部名时才覆写——幂等，且不覆盖用户手动改过的 label
+      if (label && (!w.label || w.label === w.name)) w.label = label;
+    }
+  } catch {
+    /* 显示层失败绝不影响节点 */
+  }
+}
+
 // “参数模板”按钮回调：按当前协议把模板 JSON 骨架写入 params 文本域。
 // 旧工作流可能没有 params 控件——此时静默无操作；protocol 缺失时默认 openai（与 fetchModels 一致）
 function applyParamsTemplate(node) {
@@ -211,6 +243,7 @@ function ensureWidgets(node) {
         applyParamsTemplate(node);
       }).name = "Params Template"; // 供测试按 name 查找
     }
+    localizeLabels(node);
     localizeCombos(node);
     wrapProtocolCallback(node);
     syncSizePlaceholder(node, findWidget(node, "protocol")?.value);

@@ -50,19 +50,11 @@ class OpenAPIImageGenerator:
     FUNCTION: Final[str] = "generate_image"
     CATEGORY: Final[str] = "外部文生图 (OpenAPI)"  # 单段中文分类(仿 llm_party 菜单样式) → 显示在添加节点根菜单
     DESCRIPTION: Final[str] = (
-        "通过 OpenAI 兼容的图像生成 API（/images/generations）生成图像。"
-        "先在「获取模型列表」按钮拉取模型，再填写提示词运行；"
-        "附加参数以 JSON 形式填入 params 字段，model/prompt 两键不可覆盖。"
-        "v0.2 起支持 protocol 协议选择：openai（兼容端点）或 dashscope（阿里云百炼原生 multimodal-generation）。"
-        "新增交互式基本参数控件（全部可选，留空=不发送）："
-        "openai 协议支持 size / quality / output_format / background / moderation / count(→n)，"
-        "dashscope 协议支持 size / negative_prompt / count(→parameters.n)，quality 等 openai 专属控件在 "
-        "dashscope 下会被拒绝（可改走 params JSON）。"
-        "size 语法：openai 用 1024x1024，dashscope 用 1024*1024（x 与 * 均接受并自动归一为协议正典形式；"
-        "'auto' 仅 openai 支持）。"
-        "与 params JSON 同名时 JSON 优先（JSON 为高级通道）。"
-        "无专属控件的高级参数仅能经 params JSON 传入，如 input_fidelity、output_compression、"
-        "prompt_extend、watermark。"
+        "外部文生图：经 OpenAI 兼容 /images/generations 或阿里百炼原生接口生成图像。"
+        "用法：填 base_url 与 api_key → 点「获取模型列表」选模型 → 填提示词运行。"
+        "基础参数用交互控件（图片尺寸/质量/输出格式/背景/审核/负面词/数量），留空不发送；"
+        "size 写法 x/*/× 均可，按协议自动归一（openai→x，dashscope→*，auto 仅 openai）。"
+        "其余参数写 params JSON（同名键以 JSON 为准、原样透传；model/prompt 不可覆盖）。"
     )
 
     @classmethod
