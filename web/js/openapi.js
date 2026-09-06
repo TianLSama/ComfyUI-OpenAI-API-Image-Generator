@@ -12,7 +12,7 @@ const ROUTE_CACHE = "/comfyui_openapi/cache";
 // v0.3.3 加载信标：F12 控制台出现此行 = 浏览器真正在跑本 build 的 JS。
 // 若硬刷新后仍无此行，说明浏览器在跑旧缓存、或 ComfyUI 从别的目录加载了
 // 旧副本——属部署/缓存问题而非代码逻辑问题（window 标记供控制台直接查验）。
-const BUILD_TAG = "v0.3.3";
+const BUILD_TAG = "v0.3.4";
 console.info(`[OpenAPI] openapi.js 已加载 build=${BUILD_TAG}`);
 try {
   window.__OPENAPI_BUILD__ = BUILD_TAG;
@@ -117,45 +117,14 @@ function findWidget(node, name) {
   return node.widgets?.find((w) => w.name === name) ?? null;
 }
 
-// v0.3.1：COMBO 中文标签。{content, value} 是 litegraph 原生 options 格式，
-// 新旧两代前端均支持；控件值、工作流序列化、服务端 value_not_in_list 校验
-// 全部仍为英文正典值——纯显示层映射，零向后兼容风险（旧工作流照常加载）。
-const ZH_COMBO_LABELS = {
-  "": "（留空不发送）",
-  openai: "openai（兼容端点）",
-  dashscope: "dashscope（阿里百炼原生）",
-  auto: "auto（自动）",
-  high: "high（高）",
-  medium: "medium（中）",
-  low: "low（低）",
-  transparent: "transparent（透明）",
-  opaque: "opaque（不透明）",
-};
-
-// 需要本地化的 5 个协议/基本参数下拉（model 是远端动态列表，不本地化）
-const LOCALIZED_COMBOS = ["protocol", "quality", "output_format", "background", "moderation"];
-
-// 把指定 combo 的 values 换成中文标签对象；已是对象形态（已本地化）则跳过，
-// 无中文映射的值保持原样。任何失败静默（显示层绝不反噬节点功能）。
-function localizeCombo(node, name) {
-  try {
-    const w = findWidget(node, name);
-    const vals = w?.options?.values;
-    if (!Array.isArray(vals) || !vals.every((v) => typeof v === "string")) return;
-    const mapped = vals.map((v) => (ZH_COMBO_LABELS[v] ? { content: ZH_COMBO_LABELS[v], value: v } : v));
-    if (mapped.some((m) => typeof m === "object")) w.options.values = mapped;
-  } catch {
-    /* 静默失败 */
-  }
-}
-
-function localizeCombos(node) {
-  for (const name of LOCALIZED_COMBOS) localizeCombo(node, name);
-}
+// 注意：COMBO 下拉选项【不做】中文映射——frontend 1.49.6 的 combo 不支持
+// {content, value} 对象选项（实机渲染为 [object Object]），元组形式亦无保障。
+// 选项值保持英文正典（openai/dashscope/auto/high…），中文语义由控件 label 承担。
 
 // v0.3.2：控件中文显示名。只改 widget.label（litegraph 渲染优先取 label），
 // name/序列化值/服务端校验全部不动——纯显示层，旧工作流零影响。
 // 括号里保留后端字段名，方便对照 params JSON 键名与排错检索。
+// 按钮 widget 在新前端按 name 渲染文案，故同样需要 label 覆盖为中文。
 const ZH_WIDGET_LABELS = {
   base_url: "服务地址 (base_url)",
   api_key: "API 密钥 (api_key)",
@@ -171,6 +140,8 @@ const ZH_WIDGET_LABELS = {
   moderation: "审核等级 (moderation)",
   negative_prompt: "负面提示词 (negative_prompt)",
   count: "生成数量 (count)",
+  "Fetch Models": "获取模型列表",
+  "Params Template": "参数模板",
 };
 
 function localizeLabels(node) {
@@ -264,9 +235,8 @@ function ensureWidgets(node) {
   } catch (e) {
     console.error("[OpenAPI] 注入「参数模板」按钮失败:", e);
   }
-  // 以下各函数内部均已全静默，此处无需再包
+  // 以下各函数内部均已全静默，此处无需再包（按钮中文文案亦由 localizeLabels 覆盖）
   localizeLabels(node);
-  localizeCombos(node);
   wrapProtocolCallback(node);
   syncSizePlaceholder(node, findWidget(node, "protocol")?.value);
 }
