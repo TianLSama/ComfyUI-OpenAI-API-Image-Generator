@@ -173,80 +173,86 @@ function syncSizePlaceholder(node, protocolValue) {
   }
 }
 
+// 包装 protocol 控件回调（幂等：控件上的标记防重复包装）。
+// 上游回调异常被隔离为 console.error——其他扩展崩不了本节点的占位符联动。
+function wrapProtocolCallback(node) {
+  const protoW = findWidget(node, "protocol");
+  if (!protoW || protoW.__openapiProtoWrapped) return;
+  const origProtoCb = protoW.callback;
+  protoW.callback = function (...cbArgs) {
+    try {
+      origProtoCb?.apply(this, cbArgs);
+    } catch (e) {
+      console.error("[OpenAPI] protocol 上游回调抛出异常（已隔离）:", e);
+    }
+    syncSizePlaceholder(node, cbArgs[0]);
+  };
+  protoW.__openapiProtoWrapped = true;
+}
+
+// v0.3.1 核心修复：幂等地保证「按钮 + 中文标签 + 占位符联动」就位。
+// 背景：按钮是动态注入 widget，不在后端节点定义里——新版前端在节点定义
+// 变化（本插件 7→14 控件升级即触发）时会重建 node.widgets 且不再执行
+// onNodeCreated，动态按钮随重建丢失。对策：挂全生命周期（onNodeCreated /
+// onConfigure / updateNodeData / graphNodeMounted），每次按 name 检测缺失
+// 才补注，重复调用无副作用；addWidget 追加在 widgets 末尾，不打乱
+// widgets_values 的索引映射。任何失败只记日志，绝不向上抛。
+function ensureWidgets(node) {
+  try {
+    if (!node?.addWidget) return;
+    if (!findWidget(node, "Fetch Models")) {
+      const w = node.addWidget("button", "获取模型列表", null, () => {
+        fetchModels(node, w);
+      });
+      w.name = "Fetch Models"; // 供测试按 name 查找
+    }
+    if (!findWidget(node, "Params Template")) {
+      node.addWidget("button", "参数模板", null, () => {
+        applyParamsTemplate(node);
+      }).name = "Params Template"; // 供测试按 name 查找
+    }
+    localizeCombos(node);
+    wrapProtocolCallback(node);
+    syncSizePlaceholder(node, findWidget(node, "protocol")?.value);
+  } catch (e) {
+    console.error("[OpenAPI] ensureWidgets 失败（按钮可能缺失，请报告此日志）:", e);
+  }
+}
+
 app.registerExtension({
   name: "ComfyUI.OpenAPI.FetchModels",
   beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== NODE_CLASS) return;
 
-    // 节点创建后追加按钮 widget（v0.3.1：上游扩展异常已隔离，按钮必达）
+    // 节点创建：先执行上游链（异常隔离），再幂等注入本扩展 widget
     const origOnNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function (...args) {
-      // v0.3.1 修复：上游扩展（注册在本扩展之前的其他节点包）若在其 onNodeCreated
-      // 中抛异常（如环境里抛 clipboard 错误的 LLM 包），曾一并带走本节点按钮。
-      // 现在隔离为 console.error，保证下方按钮与本地化始终执行。
       let r;
       try {
         r = origOnNodeCreated?.apply(this, args);
       } catch (e) {
-        console.error("[OpenAPI] 上游扩展的 onNodeCreated 抛出异常（已隔离，本节点按钮不受影响）:", e);
+        console.error("[OpenAPI] 上游扩展的 onNodeCreated 抛出异常（已隔离）:", e);
       }
-      const w = this.addWidget("button", "获取模型列表", null, () => {
-        fetchModels(this, w);
-      });
-      w.name = "Fetch Models"; // 供测试按 name 查找
-
-      // v0.3：“参数模板”按钮——按当前协议把 params 文本域填充为 JSON 骨架
-      const tplW = this.addWidget("button", "参数模板", null, () => {
-        applyParamsTemplate(this);
-      });
-      tplW.name = "Params Template"; // 供测试按 name 查找
-
-      // v0.3.1：protocol/基本参数下拉应用中文标签（值不变，纯显示层）
-      localizeCombos(this);
-
-      // v0.3：包装 protocol 控件回调——切换协议后联动刷新 size 占位提示。
-      // v0.3.1：上游回调异常同样隔离（不再向外传播打断交互）
-      const node = this;
-      try {
-        const protoW = findWidget(this, "protocol");
-        if (protoW) {
-          const origProtoCb = protoW.callback;
-          protoW.callback = function (...cbArgs) {
-            try {
-              origProtoCb?.apply(this, cbArgs);
-            } catch (e) {
-              console.error("[OpenAPI] protocol 上游回调抛出异常（已隔离）:", e);
-            }
-            syncSizePlaceholder(node, cbArgs[0]);
-          };
-          syncSizePlaceholder(node, protoW.value); // 创建时按当前协议初始化占位符
-        }
-      } catch (e) {
-        console.error("[OpenAPI] protocol 回调包装失败（不影响节点功能）:", e);
-      }
+      ensureWidgets(this);
       return r;
     };
 
-    // 加载配置后按 base_url 从缓存预填 api_key（尽力而为，失败静默）
+    // 工作流加载恢复：上游异常隔离后补注入（litegraph 恢复 widgets_values 不触发
+    // 控件回调，protocol/size 联动需要在 configure 后重建）
     const origOnConfigure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function (info) {
-      // v0.3.1：同 onNodeCreated——隔离上游 onConfigure 异常，本钩子后续步骤必达
       let r;
       try {
         r = origOnConfigure?.apply(this, arguments);
       } catch (e) {
         console.error("[OpenAPI] 上游扩展的 onConfigure 抛出异常（已隔离）:", e);
       }
-      // v0.3.1：litegraph 恢复 widgets_values 时不触发控件回调，且节点定义刷新
-      // 会把 options.values 重置回后端纯字符串——故加载工作流后补做一次
-      // 中文标签本地化 + 按还原 protocol 值刷新 size 占位符（内部均全静默）
-      localizeCombos(this);
-      syncSizePlaceholder(this, findWidget(this, "protocol")?.value);
+      ensureWidgets(this);
+      // 加载配置后按 base_url 从缓存预填 api_key（尽力而为，失败静默）
       (async () => {
         try {
-          const apiKeyW = this.widgets?.find((x) => x.name === "api_key");
-          const baseUrlW = this.widgets?.find((x) => x.name === "base_url");
-          const baseUrl = (baseUrlW?.value ?? "").trim();
+          const apiKeyW = findWidget(this, "api_key");
+          const baseUrl = (findWidget(this, "base_url")?.value ?? "").trim();
           if (apiKeyW && (apiKeyW.value == null || apiKeyW.value === "") && baseUrl) {
             const res = await api.fetchApi(`${ROUTE_CACHE}?base_url=${encodeURIComponent(baseUrl)}`);
             const json = await res.json();
@@ -258,5 +264,29 @@ app.registerExtension({
       })();
       return r;
     };
+
+    // ★ v0.3.1 关键补漏：新版前端在节点定义变化（如本插件 7→14 控件升级）时会
+    // 调 updateNodeData 重建全部 widgets 且【不再执行 onNodeCreated】——动态注入
+    // 的按钮正是于此丢失（用户报告的「按钮消失」根因）。在其后幂等补注。
+    const origUpdateNodeData = nodeType.prototype.updateNodeData;
+    if (typeof origUpdateNodeData === "function") {
+      nodeType.prototype.updateNodeData = function (...args) {
+        let r;
+        try {
+          r = origUpdateNodeData.apply(this, args);
+        } catch (e) {
+          console.error("[OpenAPI] 上游 updateNodeData 抛出异常（已隔离）:", e);
+          throw e; // 维持原语义：重建失败本就该向外暴露
+        }
+        ensureWidgets(this);
+        return r;
+      };
+    }
+  },
+
+  // 新前端（Vue）每个节点 DOM 挂载后的钩子——最后防线：无论此前哪个环节
+  // 重建/清掉了按钮，挂载完成后都能补回来。旧前端无此钩子，自然降级。
+  graphNodeMounted(litegraphNode) {
+    if (litegraphNode?.type === NODE_CLASS) ensureWidgets(litegraphNode);
   },
 });
