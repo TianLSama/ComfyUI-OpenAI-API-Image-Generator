@@ -9,6 +9,17 @@ const NODE_CLASS = "OpenAPIImageGenerator";
 const ROUTE_FETCH = "/comfyui_openapi/fetch_models";
 const ROUTE_CACHE = "/comfyui_openapi/cache";
 
+// v0.3.3 加载信标：F12 控制台出现此行 = 浏览器真正在跑本 build 的 JS。
+// 若硬刷新后仍无此行，说明浏览器在跑旧缓存、或 ComfyUI 从别的目录加载了
+// 旧副本——属部署/缓存问题而非代码逻辑问题（window 标记供控制台直接查验）。
+const BUILD_TAG = "v0.3.3";
+console.info(`[OpenAPI] openapi.js 已加载 build=${BUILD_TAG}`);
+try {
+  window.__OPENAPI_BUILD__ = BUILD_TAG;
+} catch {
+  /* 非浏览器环境忽略 */
+}
+
 // v0.3：参数模板 JSON 骨架（“参数模板”按钮写入 params 文本域，2 空格缩进）。
 // 键顺序即模板顺序；JSON 中同名键优先于交互控件（后端已实现该覆盖规则）。
 const PARAMS_TEMPLATES = {
@@ -226,31 +237,54 @@ function wrapProtocolCallback(node) {
 // 背景：按钮是动态注入 widget，不在后端节点定义里——新版前端在节点定义
 // 变化（本插件 7→14 控件升级即触发）时会重建 node.widgets 且不再执行
 // onNodeCreated，动态按钮随重建丢失。对策：挂全生命周期（onNodeCreated /
-// onConfigure / updateNodeData / graphNodeMounted），每次按 name 检测缺失
-// 才补注，重复调用无副作用；addWidget 追加在 widgets 末尾，不打乱
-// widgets_values 的索引映射。任何失败只记日志，绝不向上抛。
+// onConfigure / updateNodeData / nodeCreated / graphNodeMounted / 巡检看门狗），
+// 每次按 name 检测缺失才补注，重复调用无副作用；addWidget 追加在 widgets
+// 末尾，不打乱 widgets_values 的索引映射。
+// v0.3.3：步骤级隔离——任一步失败只记日志，绝不影响其余步骤（按钮优先）。
 function ensureWidgets(node) {
+  if (!node?.addWidget) return;
   try {
-    if (!node?.addWidget) return;
     if (!findWidget(node, "Fetch Models")) {
       const w = node.addWidget("button", "获取模型列表", null, () => {
         fetchModels(node, w);
       });
       w.name = "Fetch Models"; // 供测试按 name 查找
+      console.debug("[OpenAPI] 补注「获取模型列表」按钮于节点:", node.id);
     }
-    if (!findWidget(node, "Params Template")) {
-      node.addWidget("button", "参数模板", null, () => {
-        applyParamsTemplate(node);
-      }).name = "Params Template"; // 供测试按 name 查找
-    }
-    localizeLabels(node);
-    localizeCombos(node);
-    wrapProtocolCallback(node);
-    syncSizePlaceholder(node, findWidget(node, "protocol")?.value);
   } catch (e) {
-    console.error("[OpenAPI] ensureWidgets 失败（按钮可能缺失，请报告此日志）:", e);
+    console.error("[OpenAPI] 注入「获取模型列表」按钮失败:", e);
+  }
+  try {
+    if (!findWidget(node, "Params Template")) {
+      const t = node.addWidget("button", "参数模板", null, () => {
+        applyParamsTemplate(node);
+      });
+      t.name = "Params Template"; // 供测试按 name 查找
+    }
+  } catch (e) {
+    console.error("[OpenAPI] 注入「参数模板」按钮失败:", e);
+  }
+  // 以下各函数内部均已全静默，此处无需再包
+  localizeLabels(node);
+  localizeCombos(node);
+  wrapProtocolCallback(node);
+  syncSizePlaceholder(node, findWidget(node, "protocol")?.value);
+}
+
+// v0.3.3 兜底巡检：无论按钮在哪个环节丢失（钩子链被其他扩展吞掉、前端重建
+// 路径变化、时序竞争……），每 800ms 全图扫一遍本插件节点幂等补回。只遍历
+// 匹配类型的节点，开销可忽略；页面卸载自然终止。
+function patrolOnce() {
+  try {
+    const nodes = app.graph?.nodes ?? app.graph?._nodes ?? [];
+    for (const node of nodes) {
+      if (node?.type === NODE_CLASS) ensureWidgets(node);
+    }
+  } catch {
+    /* 巡检自身绝不抛错 */
   }
 }
+if (typeof setInterval === "function") setInterval(patrolOnce, 800);
 
 app.registerExtension({
   name: "ComfyUI.OpenAPI.FetchModels",
@@ -315,6 +349,12 @@ app.registerExtension({
         return r;
       };
     }
+  },
+
+  // 官方扩展钩子（新旧前端均支持）：独立于 prototype 链包装的第三条注入
+  // 路径——即使 onNodeCreated 链被其他扩展吞掉，nodeCreated 仍会触发
+  nodeCreated(node) {
+    if (node?.type === NODE_CLASS) ensureWidgets(node);
   },
 
   // 新前端（Vue）每个节点 DOM 挂载后的钩子——最后防线：无论此前哪个环节
