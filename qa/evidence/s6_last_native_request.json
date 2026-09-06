@@ -1,0 +1,19 @@
+{
+  "model": "qwen-image-3.0-pro",
+  "input": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "a red square"
+          }
+        ]
+      }
+    ]
+  },
+  "parameters": {
+    "size": "64*64",
+    "n": 1
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "OpenAPIImageGenerator",
+      "inputs": {
+        "base_url": "http://127.0.0.1:18099",
+        "api_key": "qa-test-key",
+        "model": "mock-401",
+        "prompt": "a red square",
+        "system_prompt": "",
+        "params": "",
+        "protocol": "openai"
+      }
+    },
+    "2": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1",
+          0
+        ]
+      }
+    }
+  }
+}

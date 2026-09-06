@@ -1,0 +1,5 @@
+{
+  "model": "mock-b64",
+  "prompt": "a red square",
+  "response_format": "b64_json"
+}

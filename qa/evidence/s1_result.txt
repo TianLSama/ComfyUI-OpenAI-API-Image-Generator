@@ -1,0 +1,1 @@
+PASS 出图文件名=ComfyUI_temp_vtsek_00001_.png; /view 下载有效 PNG 556 字节; mock 收到正确请求体

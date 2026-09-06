@@ -1,0 +1,84 @@
+{
+  "f06b27b4-3ba2-430e-b088-6894cd0ae6bc": {
+    "prompt": [
+      0,
+      "f06b27b4-3ba2-430e-b088-6894cd0ae6bc",
+      {
+        "1": {
+          "class_type": "OpenAPIImageGenerator",
+          "inputs": {
+            "base_url": "http://127.0.0.1:18099",
+            "api_key": "qa-test-key",
+            "model": "mock-b64",
+            "prompt": "a red square",
+            "system_prompt": "",
+            "params": "",
+            "protocol": "openai"
+          }
+        },
+        "2": {
+          "class_type": "PreviewImage",
+          "inputs": {
+            "images": [
+              "1",
+              0
+            ]
+          }
+        }
+      },
+      {
+        "create_time": 1788620537349
+      },
+      [
+        "2"
+      ]
+    ],
+    "outputs": {
+      "2": {
+        "images": [
+          {
+            "filename": "ComfyUI_temp_vtsek_00001_.png",
+            "subfolder": "",
+            "type": "temp"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "f06b27b4-3ba2-430e-b088-6894cd0ae6bc",
+            "timestamp": 1788620537350
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "f06b27b4-3ba2-430e-b088-6894cd0ae6bc",
+            "timestamp": 1788620537351
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "f06b27b4-3ba2-430e-b088-6894cd0ae6bc",
+            "timestamp": 1788620537386
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "2": {
+        "node_id": "2",
+        "display_node": "2",
+        "parent_node": null,
+        "real_node_id": "2"
+      }
+    }
+  }
+}

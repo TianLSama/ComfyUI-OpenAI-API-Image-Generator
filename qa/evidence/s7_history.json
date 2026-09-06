@@ -1,0 +1,106 @@
+{
+  "8d02bfb4-f388-4ae6-b675-cdce507fea5e": {
+    "prompt": [
+      5,
+      "8d02bfb4-f388-4ae6-b675-cdce507fea5e",
+      {
+        "1": {
+          "class_type": "OpenAPIImageGenerator",
+          "inputs": {
+            "base_url": "http://127.0.0.1:18099",
+            "api_key": "qa-test-key",
+            "model": "qwen-image-plus",
+            "prompt": "a red square",
+            "system_prompt": "",
+            "params": "",
+            "protocol": "dashscope"
+          }
+        },
+        "2": {
+          "class_type": "PreviewImage",
+          "inputs": {
+            "images": [
+              "1",
+              0
+            ]
+          }
+        }
+      },
+      {
+        "create_time": 1788620547666
+      },
+      [
+        "2"
+      ]
+    ],
+    "outputs": {},
+    "status": {
+      "status_str": "error",
+      "completed": false,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "8d02bfb4-f388-4ae6-b675-cdce507fea5e",
+            "timestamp": 1788620547667
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "8d02bfb4-f388-4ae6-b675-cdce507fea5e",
+            "timestamp": 1788620547667
+          }
+        ],
+        [
+          "execution_error",
+          {
+            "prompt_id": "8d02bfb4-f388-4ae6-b675-cdce507fea5e",
+            "node_id": "1",
+            "node_type": "OpenAPIImageGenerator",
+            "executed": [],
+            "exception_message": "OpenAPI Image Generator: ModelNotFound: Model not exist.\n",
+            "exception_type": "ValueError",
+            "traceback": [
+              "  File \"E:\\Work\\project\\Python\\ComfyUI\\execution.py\", line 545, in execute\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+              "  File \"E:\\Work\\project\\Python\\ComfyUI\\execution.py\", line 344, in get_output_data\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+              "  File \"E:\\Work\\project\\Python\\ComfyUI\\execution.py\", line 318, in _async_map_node_over_list\n    await process_inputs(input_dict, i)\n",
+              "  File \"E:\\Work\\project\\Python\\ComfyUI\\execution.py\", line 306, in process_inputs\n    result = f(**inputs)\n             ^^^^^^^^^^^\n",
+              "  File \"E:\\Work\\project\\Python\\ComfyUI\\custom_nodes\\ComfyUI-OpenAPI\\nodes.py\", line 169, in generate_image\n    raise _user_error(str(exc)) from exc\n"
+            ],
+            "current_inputs": {
+              "base_url": [
+                "http://127.0.0.1:18099"
+              ],
+              "api_key": [
+                "qa-test-key"
+              ],
+              "model": [
+                "qwen-image-plus"
+              ],
+              "prompt": [
+                "a red square"
+              ],
+              "system_prompt": [
+                ""
+              ],
+              "params": [
+                ""
+              ],
+              "protocol": [
+                "dashscope"
+              ]
+            },
+            "current_outputs": [
+              "1",
+              "2"
+            ],
+            "timestamp": 1788620547683
+          }
+        ]
+      ]
+    },
+    "meta": {}
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "640b26dc-def8-412b-be4d-a909ede4c9ea": {
+    "prompt": [
+      4,
+      "640b26dc-def8-412b-be4d-a909ede4c9ea",
+      {
+        "1": {
+          "class_type": "OpenAPIImageGenerator",
+          "inputs": {
+            "base_url": "http://127.0.0.1:18099",
+            "api_key": "qa-test-key",
+            "model": "qwen-image-3.0-pro",
+            "prompt": "a red square",
+            "system_prompt": "",
+            "params": "{\"size\":\"64*64\",\"n\":1}",
+            "protocol": "dashscope"
+          }
+        },
+        "2": {
+          "class_type": "PreviewImage",
+          "inputs": {
+            "images": [
+              "1",
+              0
+            ]
+          }
+        }
+      },
+      {
+        "create_time": 1788620545618
+      },
+      [
+        "2"
+      ]
+    ],
+    "outputs": {
+      "2": {
+        "images": [
+          {
+            "filename": "ComfyUI_temp_vtsek_00003_.png",
+            "subfolder": "",
+            "type": "temp"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "640b26dc-def8-412b-be4d-a909ede4c9ea",
+            "timestamp": 1788620545619
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "640b26dc-def8-412b-be4d-a909ede4c9ea",
+            "timestamp": 1788620545619
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "640b26dc-def8-412b-be4d-a909ede4c9ea",
+            "timestamp": 1788620545657
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "2": {
+        "node_id": "2",
+        "display_node": "2",
+        "parent_node": null,
+        "real_node_id": "2"
+      }
+    }
+  }
+}

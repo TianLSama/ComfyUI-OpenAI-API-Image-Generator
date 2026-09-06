@@ -1,0 +1,5 @@
+{
+  "model": "mock-b64",
+  "prompt": "linked-prompt-marker",
+  "response_format": "b64_json"
+}

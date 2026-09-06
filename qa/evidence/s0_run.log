@@ -1,0 +1,136 @@
+[16:31:44] smoke.ps1 开始执行 (MockPort=18099 ComfyPort=18188)
+[16:31:44] STEP 0: 校验/创建插件 junction
+[16:31:44]   已创建 junction (本次运行负责回收)
+[16:31:44] STEP 1: 启动 mock (端口 18099)
+[16:31:44]   mock PID=20156, 轮询 MOCK_READY (≤30s)
+[16:31:45]   mock 就绪
+[16:31:45] STEP 2: 启动 ComfyUI (端口 18188, --cpu)
+[16:31:45]   comfy PID=35664, 轮询 /system_stats (2s 间隔, ≤120s)
+[16:31:57]   ComfyUI 就绪
+[16:31:57] STEP 3: S5 证据采集
+[16:31:58] s5: PASS - 三节点均已注册, 无涉及插件的启动 Traceback
+[16:31:58] STEP 5: S1 (s1_ok.json 正常出图链路)
+[16:31:58] s1: FAIL - Response status code does not indicate success: 400 (Bad Request).
+[16:31:58] STEP 6: S4 错误场景
+[16:31:58] s4_auth: FAIL - Response status code does not indicate success: 400 (Bad Request).
+[16:31:58] s4_params: FAIL - Response status code does not indicate success: 400 (Bad Request).
+[16:31:58] STEP 7: S3 REST 半边 (s3_linked_prompt.json)
+[16:31:58] s3_rest: FAIL - Response status code does not indicate success: 400 (Bad Request).
+[16:31:58] TEARDOWN: 开始清理
+[16:32:00]   junction 已删除
+[16:32:00]   sanity OK: PluginDir\urls.py 仍在 (插件源码未受损)
+[16:32:00]   缓存目录已清理; evidence 目录完整保留: E:\Work\project\Python\ComfyUI-OpenAPI\qa\evidence
+[16:36:40] smoke.ps1 开始执行 (MockPort=18099 ComfyPort=18188)
+[16:36:40] STEP 0: 校验/创建插件 junction
+[16:36:40]   已创建 junction (本次运行负责回收)
+[16:36:40] STEP 1: 启动 mock (端口 18099)
+[16:36:40]   mock PID=13740, 轮询 MOCK_READY (≤30s)
+[16:36:40]   mock 就绪
+[16:36:40] STEP 2: 启动 ComfyUI (端口 18188, --cpu)
+[16:36:40]   comfy PID=9540, 轮询 /system_stats (2s 间隔, ≤120s)
+[16:36:51]   ComfyUI 就绪
+[16:36:51] STEP 3: S5 证据采集
+[16:36:51] s5: PASS - 三节点均已注册, 无涉及插件的启动 Traceback
+[16:36:51] STEP 4.5: 缓存预热 (POST /api/comfyui_openapi/fetch_models)
+[16:36:51]   预热完成: 7 个模型已入缓存 (mock-b64, mock-url, mock-multi, mock-siliconflow, mock-401, mock-error-code, mock-empty)
+[16:36:51] STEP 5: S1 (s1_ok.json 正常出图链路)
+[16:36:51] s1: FAIL - POST /prompt 返回 HTTP 400: {"error":{"type":"prompt_outputs_failed_validation","message":"Prompt outputs failed validation","details":"","extra_info":{}},"node_errors":{"1":{"errors":[{"type":"value_not_in_list","message":"Value not in list","details":"model: 'mock-b64' not in ['(no models — press Fetch Models)']","extra_info":{"input_name":"model","input_config":[["(no models — press Fetch Models)"],{}],"received_value":"mock-b64"}}],"dependent_outputs":["2"],"class_type":"OpenAPIImageGenerator"}}}
+[16:36:51] STEP 6: S4 错误场景
+[16:36:51] s4_auth: FAIL - POST /prompt 返回 HTTP 400: {"error":{"type":"prompt_outputs_failed_validation","message":"Prompt outputs failed validation","details":"","extra_info":{}},"node_errors":{"1":{"errors":[{"type":"value_not_in_list","message":"Value not in list","details":"model: 'mock-401' not in ['(no models — press Fetch Models)']","extra_info":{"input_name":"model","input_config":[["(no models — press Fetch Models)"],{}],"received_value":"mock-401"}}],"dependent_outputs":["2"],"class_type":"OpenAPIImageGenerator"}}}
+[16:36:51] s4_params: FAIL - POST /prompt 返回 HTTP 400: {"error":{"type":"prompt_outputs_failed_validation","message":"Prompt outputs failed validation","details":"","extra_info":{}},"node_errors":{"1":{"errors":[{"type":"value_not_in_list","message":"Value not in list","details":"model: 'mock-b64' not in ['(no models — press Fetch Models)']","extra_info":{"input_name":"model","input_config":[["(no models — press Fetch Models)"],{}],"received_value":"mock-b64"}}],"dependent_outputs":["2"],"class_type":"OpenAPIImageGenerator"}}}
+[16:36:51] STEP 7: S3 REST 半边 (s3_linked_prompt.json)
+[16:36:51] s3_rest: FAIL - POST /prompt 返回 HTTP 400: {"error":{"type":"prompt_outputs_failed_validation","message":"Prompt outputs failed validation","details":"","extra_info":{}},"node_errors":{"1":{"errors":[{"type":"value_not_in_list","message":"Value not in list","details":"model: 'mock-b64' not in ['(no models — press Fetch Models)']","extra_info":{"input_name":"model","input_config":[["(no models — press Fetch Models)"],{}],"received_value":"mock-b64"}}],"dependent_outputs":["2"],"class_type":"OpenAPIImageGenerator"}}}
+[16:36:51] TEARDOWN: 开始清理
+[16:36:53]   junction 已删除
+[16:36:53]   sanity OK: PluginDir\urls.py 仍在 (插件源码未受损)
+[16:36:53]   缓存目录已清理; evidence 目录完整保留: E:\Work\project\Python\ComfyUI-OpenAPI\qa\evidence
+[16:52:08] smoke.ps1 开始执行 (MockPort=18099 ComfyPort=18188)
+[16:52:08] STEP 0: 校验/创建插件 junction
+[16:52:08]   已创建 junction (本次运行负责回收)
+[16:52:08] STEP 1: 启动 mock (端口 18099)
+[16:52:08]   mock PID=34376, 轮询 MOCK_READY (≤30s)
+[16:52:08]   mock 就绪
+[16:52:08] STEP 2: 启动 ComfyUI (端口 18188, --cpu)
+[16:52:08]   comfy PID=35532, 轮询 /system_stats (2s 间隔, ≤120s)
+[16:52:21]   ComfyUI 就绪
+[16:52:21] STEP 3: S5 证据采集
+[16:52:21] s5: PASS - 三节点均已注册, 无涉及插件的启动 Traceback
+[16:52:21] STEP 4.5: 缓存预热 (POST /api/comfyui_openapi/fetch_models)
+[16:52:21]   预热完成: 7 个模型已入缓存 (mock-b64, mock-url, mock-multi, mock-siliconflow, mock-401, mock-error-code, mock-empty)
+[16:52:21] STEP 5: S1 (s1_ok.json 正常出图链路)
+[16:52:21]   prompt_id=4f876008-46cf-4f1b-b83b-9c46fdd77e8e, 轮询 /history (最长 60s)
+[16:52:23] s1: FAIL - s1_view.png 仅 534 字节 (要求 >1000)
+[16:52:23] STEP 6: S4 错误场景
+[16:52:23]   prompt_id=8a8e2d4f-a1cc-4719-b0a8-47486c684b98, 轮询 /history (最长 60s)
+[16:52:23] s4_auth: FAIL - status_str='error', 期望 'failed'
+[16:52:23]   prompt_id=1e6580b9-1b04-40d5-b910-6fee87f69c9f, 轮询 /history (最长 60s)
+[16:52:25] s4_params: FAIL - status_str='error', 期望 'failed'
+[16:52:25] STEP 7: S3 REST 半边 (s3_linked_prompt.json)
+[16:52:25]   prompt_id=c6c11ad0-31c9-4621-a1df-6bee04abe872, 轮询 /history (最长 60s)
+[16:52:27] s3_rest: FAIL - last_request body.prompt 不为 'linked-prompt-marker' (实际: '')
+[16:52:28] TEARDOWN: 开始清理
+[16:52:29]   junction 已删除
+[16:52:29]   sanity OK: PluginDir\urls.py 仍在 (插件源码未受损)
+[16:52:29]   缓存目录已清理; evidence 目录完整保留: E:\Work\project\Python\ComfyUI-OpenAPI\qa\evidence
+[16:57:15] smoke.ps1 开始执行 (MockPort=18099 ComfyPort=18188)
+[16:57:15] STEP 0: 校验/创建插件 junction
+[16:57:15]   已创建 junction (本次运行负责回收)
+[16:57:15] STEP 1: 启动 mock (端口 18099)
+[16:57:15]   mock PID=8960, 轮询 MOCK_READY (≤30s)
+[16:57:15]   mock 就绪
+[16:57:15] STEP 2: 启动 ComfyUI (端口 18188, --cpu)
+[16:57:16]   comfy PID=39700, 轮询 /system_stats (2s 间隔, ≤120s)
+[16:57:28]   ComfyUI 就绪
+[16:57:28] STEP 3: S5 证据采集
+[16:57:28] s5: PASS - 三节点均已注册, 无涉及插件的启动 Traceback
+[16:57:28] STEP 4.5: 缓存预热 (POST /api/comfyui_openapi/fetch_models)
+[16:57:28]   预热完成: 7 个模型已入缓存 (mock-b64, mock-url, mock-multi, mock-siliconflow, mock-401, mock-error-code, mock-empty)
+[16:57:28] STEP 5: S1 (s1_ok.json 正常出图链路)
+[16:57:28]   prompt_id=a1702af5-b04a-49ab-99e2-ad9198ea6c7e, 轮询 /history (最长 60s)
+[16:57:30] s1: PASS - 出图文件名=ComfyUI_temp_jqgic_00001_.png; /view 下载有效 PNG 534 字节; mock 收到正确请求体
+[16:57:30] STEP 6: S4 错误场景
+[16:57:30]   prompt_id=d1c2ef0f-1845-453b-9e39-7a41916dbc75, 轮询 /history (最长 60s)
+[16:57:32] s4_auth: PASS - 执行失败且错误信息含 'Invalid API key'
+[16:57:32]   prompt_id=ce0640e6-3c7e-4eea-a8b4-9dd34812ccf9, 轮询 /history (最长 60s)
+[16:57:33] s4_params: PASS - 执行失败且错误信息含 'params'
+[16:57:33] STEP 7: S3 REST 半边 (s3_linked_prompt.json)
+[16:57:33]   prompt_id=6bae3d75-6d87-4e57-bb94-f93feee892e9, 轮询 /history (最长 60s)
+[16:57:35] s3_rest: PASS - 执行完成且 mock 收到 linked-prompt-marker
+[16:57:35] TEARDOWN: 开始清理
+[16:57:36]   junction 已删除
+[16:57:36]   sanity OK: PluginDir\urls.py 仍在 (插件源码未受损)
+[16:57:36]   缓存目录已清理; evidence 目录完整保留: E:\Work\project\Python\ComfyUI-OpenAPI\qa\evidence
+[23:01:41] smoke.ps1 开始执行 (MockPort=18099 ComfyPort=18188)
+[23:01:41] STEP 0: 校验/创建插件 junction
+[23:01:41]   已创建 junction (本次运行负责回收)
+[23:01:41] STEP 1: 启动 mock (端口 18099)
+[23:01:41]   mock PID=8312, 轮询 MOCK_READY (≤30s)
+[23:01:42]   mock 就绪
+[23:01:42] STEP 2: 启动 ComfyUI (端口 18188, --cpu)
+[23:01:42]   comfy PID=26792, 轮询 /system_stats (2s 间隔, ≤120s)
+[23:02:16]   ComfyUI 就绪
+[23:02:16] STEP 3: S5 证据采集
+[23:02:17] s5: PASS - 三节点均已注册, 无涉及插件的启动 Traceback
+[23:02:17] STEP 4.5: 缓存预热 (POST /api/comfyui_openapi/fetch_models)
+[23:02:17]   预热完成: 7 个模型已入缓存 (mock-b64, mock-url, mock-multi, mock-siliconflow, mock-401, mock-error-code, mock-empty)
+[23:02:17] STEP 5: S1 (s1_ok.json 正常出图链路)
+[23:02:17]   prompt_id=f06b27b4-3ba2-430e-b088-6894cd0ae6bc, 轮询 /history (最长 60s)
+[23:02:19] s1: PASS - 出图文件名=ComfyUI_temp_vtsek_00001_.png; /view 下载有效 PNG 556 字节; mock 收到正确请求体
+[23:02:19] STEP 6: S4 错误场景
+[23:02:19]   prompt_id=5d098dfc-bc46-45b5-9a8d-f84b786735aa, 轮询 /history (最长 60s)
+[23:02:21] s4_auth: PASS - 执行失败且错误信息含 'Invalid API key'
+[23:02:21]   prompt_id=1b51b29f-4375-4e85-9f4d-2e78defe6e6d, 轮询 /history (最长 60s)
+[23:02:23] s4_params: PASS - 执行失败且错误信息含 'params'
+[23:02:23] STEP 7: S3 REST 半边 (s3_linked_prompt.json)
+[23:02:23]   prompt_id=f9994d93-7659-4311-892a-ff06fb035025, 轮询 /history (最长 60s)
+[23:02:25] s3_rest: PASS - 执行完成且 mock 收到 linked-prompt-marker
+[23:02:25] STEP 7.5: S6 (目录路由 + s6_dashscope_ok.json 原生出图)
+[23:02:25]   prompt_id=640b26dc-def8-412b-be4d-a909ede4c9ea, 轮询 /history (最长 60s)
+[23:02:27] s6_dashscope: PASS - 目录路由(7模型)+原生出图+请求体结构全部正确
+[23:02:27] STEP 7.6: S7 (s7_dashscope_404.json 错误传播)
+[23:02:27]   prompt_id=8d02bfb4-f388-4ae6-b675-cdce507fea5e, 轮询 /history (最长 60s)
+[23:02:29] s7_dashscope_err: PASS - 执行失败且原生错误信息传播到 history
+[23:02:29] TEARDOWN: 开始清理
+[23:02:31]   junction 已删除
+[23:02:31]   sanity OK: PluginDir\urls.py 仍在 (插件源码未受损)
+[23:02:31]   缓存目录已清理; evidence 目录完整保留: E:\Work\project\Python\ComfyUI-OpenAPI\qa\evidence

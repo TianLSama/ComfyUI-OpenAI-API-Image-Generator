@@ -1,0 +1,1 @@
+PASS 执行完成且 mock 收到 linked-prompt-marker

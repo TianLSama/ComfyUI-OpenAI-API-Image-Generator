@@ -1,0 +1,93 @@
+{
+  "f9994d93-7659-4311-892a-ff06fb035025": {
+    "prompt": [
+      3,
+      "f9994d93-7659-4311-892a-ff06fb035025",
+      {
+        "1": {
+          "class_type": "OpenAPIImageGenerator",
+          "inputs": {
+            "base_url": "http://127.0.0.1:18099",
+            "api_key": "qa-test-key",
+            "model": "mock-b64",
+            "prompt": [
+              "3",
+              0
+            ],
+            "system_prompt": "",
+            "params": "",
+            "protocol": "openai"
+          }
+        },
+        "2": {
+          "class_type": "PreviewImage",
+          "inputs": {
+            "images": [
+              "1",
+              0
+            ]
+          }
+        },
+        "3": {
+          "class_type": "PrimitiveStringMultiline",
+          "inputs": {
+            "value": "linked-prompt-marker"
+          }
+        }
+      },
+      {
+        "create_time": 1788620543563
+      },
+      [
+        "2"
+      ]
+    ],
+    "outputs": {
+      "2": {
+        "images": [
+          {
+            "filename": "ComfyUI_temp_vtsek_00002_.png",
+            "subfolder": "",
+            "type": "temp"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "f9994d93-7659-4311-892a-ff06fb035025",
+            "timestamp": 1788620543564
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "f9994d93-7659-4311-892a-ff06fb035025",
+            "timestamp": 1788620543565
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "f9994d93-7659-4311-892a-ff06fb035025",
+            "timestamp": 1788620543586
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "2": {
+        "node_id": "2",
+        "display_node": "2",
+        "parent_node": null,
+        "real_node_id": "2"
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "steps": {
+    "appStable": true,
+    "nodeCreated": {
+      "ok": true,
+      "widgetNames": [
+        "base_url",
+        "api_key",
+        "model",
+        "prompt",
+        "system_prompt",
+        "params",
+        "protocol",
+        "Fetch Models"
+      ],
+      "hasButton": true,
+      "hasProtocol": true,
+      "modelValues": [
+        "(no models — press Fetch Models)",
+        "qwen-image-3.0-pro",
+        "qwen-image-max",
+        "qwen-image-plus",
+        "qwen-image",
+        "wan2.5-t2i-preview",
+        "wan2.2-t2i-plus",
+        "wan2.2-t2i-flash"
+      ]
+    },
+    "afterOpenai": {
+      "values": [
+        "mock-b64",
+        "mock-url",
+        "mock-multi",
+        "mock-siliconflow",
+        "mock-401",
+        "mock-error-code",
+        "mock-empty"
+      ],
+      "value": "mock-b64"
+    },
+    "afterDashscope": {
+      "values": [
+        "qwen-image-3.0-pro",
+        "qwen-image-max",
+        "qwen-image-plus",
+        "qwen-image",
+        "wan2.5-t2i-preview",
+        "wan2.2-t2i-plus",
+        "wan2.2-t2i-flash"
+      ],
+      "value": "qwen-image-3.0-pro"
+    },
+    "s3Dom": {
+      "convertErr": null,
+      "convertedTruthy": false,
+      "slotIndex": 3
+    }
+  },
+  "assertions": {
+    "buttonWidgetExists": true,
+    "protocolWidgetExists": true,
+    "initialComboSentinelFirst": true,
+    "initialComboHasCatalog": true,
+    "openaiFetchShowsMockModels": true,
+    "toastShown": true,
+    "cacheRouteOpenai": true,
+    "dashscopeFetchShowsCatalog": true,
+    "cacheRouteDashscope": true,
+    "s3WidgetConvertedToInput": true,
+    "zeroPageErrors": true
+  },
+  "pageErrors": [],
+  "pass": true
+}

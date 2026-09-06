@@ -1,0 +1,40 @@
+# ComfyUI-OpenAPI 自定义节点插件的工程配置。
+# 本目录是 ComfyUI 的 custom_node 文件夹，不是可 pip 安装的包，
+# 因此不提供 [build-system]，[project] 仅作元数据声明。
+
+[project]
+name = "comfyui-openapi"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+# pytest 配置不放在此处：插件根目录带 __init__.py 且目录名含连字符，
+# 若 pytest 的 rootdir 落在插件根会触发 Package 导入缺陷（详见 tests/pytest.ini
+# 顶部的完整说明）。rootdir 由 tests/pytest.ini 锚定，运行方式：
+#     python -m pytest tests -q
+
+[tool.ruff]
+# ruff 检查目标解释器版本（与本仓库开发环境 Python 3.12 对齐）
+target-version = "py312"
+line-length = 120
+# 排除工具生成物与 QA 证据目录，避免误报
+extend-exclude = [".codegraph", ".omo", "qa/evidence"]
+
+[tool.ruff.lint]
+# 采用务实的严格子集而非全量 "ALL"：
+# ALL 中包含互相冲突的规则（如 ISC 隐式字符串拼接 vs COM 尾随逗号风格），
+# 且 D 等文档字符串规则会产生大量与意图无关的改动（churn），
+# 不适合小型 ComfyUI 节点插件的维护成本。
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "PIE", "RET", "RUF"]
+# 本项目强制使用简体中文注释与文档字符串，
+# RUF001/002/003（歧义 Unicode 字符）会对全角标点误报，全局禁用。
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py 中的"未使用导入"是 NODE_CLASS_MAPPINGS 的重导出惯用法
+"__init__.py" = ["F401"]
+# 测试代码的三项豁免（均为有意为之，测试文件是可执行规格，不得反向修改）：
+#   B011 —— 测试允许裸 assert 风格由 pytest 惯用法决定；
+#   B017 —— "任意异常即失败"的兜底断言（如非法图像字节让 PIL 异常直接上抛）；
+#   I001 —— cfoapi 合成包与 tests 内 mock 辅助模块均非标准可安装包，
+#           ruff 的 isort 分区无法对全部测试文件给出一致的排序结果。
+"tests/*" = ["B011", "B017", "I001"]

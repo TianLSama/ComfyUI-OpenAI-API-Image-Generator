@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "models": [
+    "mock-b64",
+    "mock-url",
+    "mock-multi",
+    "mock-siliconflow",
+    "mock-401",
+    "mock-error-code",
+    "mock-empty"
+  ],
+  "base_url": "http://127.0.0.1:18099"
+}

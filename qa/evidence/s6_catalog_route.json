@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "models": [
+    "qwen-image-3.0-pro",
+    "qwen-image-max",
+    "qwen-image-plus",
+    "qwen-image",
+    "wan2.5-t2i-preview",
+    "wan2.2-t2i-plus",
+    "wan2.2-t2i-flash"
+  ],
+  "base_url": "http://127.0.0.1:18099"
+}
