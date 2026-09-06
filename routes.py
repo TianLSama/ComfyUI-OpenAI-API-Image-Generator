@@ -8,6 +8,8 @@ web/js/openapi.js 中的 ROUTE_FETCH / ROUTE_CACHE 常量逐字对应；
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
+from urllib.parse import quote
 
 from aiohttp import web
 from server import PromptServer
@@ -16,6 +18,20 @@ from . import cache, client
 from .dashscope import DASHSCOPE_IMAGE_MODELS
 from .errors import OpenAPIConfigError, RemoteAPIError
 from .urls import normalize_base_url
+
+# 部署自检：ComfyUI 0.34 + frontend 1.49 的 /extensions 列表会对插件目录名做
+# percent-encode（空格→%20），而 aiohttp 静态路由按【原目录名】前缀匹配，
+# 编码后的请求必然 404 —— 前端永远加载不到本插件 JS（症状：节点可用但
+# 「获取模型列表」按钮与中文标签永不出现，且清缓存/换设备无效）。
+# 目录名含空格等需编码字符时在启动控制台打印明确指引，避免再次踩坑。
+_PLUGIN_DIR_NAME = Path(__file__).resolve().parent.name
+if quote(_PLUGIN_DIR_NAME) != _PLUGIN_DIR_NAME:
+    print(
+        "[ComfyUI-OpenAPI] 警告：插件目录名含需 URL 编码的字符（如空格）："
+        f"{_PLUGIN_DIR_NAME!r}。ComfyUI 0.34+/frontend 1.49+ 下前端扩展 JS 将 404，"
+        "「获取模型列表」按钮与中文标签无法加载。请把 custom_nodes 下的本插件目录"
+        "重命名为不含空格的名字（建议 ComfyUI-OpenAI-API-Image-Generator）后重启。"
+    )
 
 
 @PromptServer.instance.routes.post("/comfyui_openapi/fetch_models")
