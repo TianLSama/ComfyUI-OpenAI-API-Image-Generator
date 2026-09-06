@@ -106,6 +106,42 @@ function findWidget(node, name) {
   return node.widgets?.find((w) => w.name === name) ?? null;
 }
 
+// v0.3.1：COMBO 中文标签。{content, value} 是 litegraph 原生 options 格式，
+// 新旧两代前端均支持；控件值、工作流序列化、服务端 value_not_in_list 校验
+// 全部仍为英文正典值——纯显示层映射，零向后兼容风险（旧工作流照常加载）。
+const ZH_COMBO_LABELS = {
+  "": "（留空不发送）",
+  openai: "openai（兼容端点）",
+  dashscope: "dashscope（阿里百炼原生）",
+  auto: "auto（自动）",
+  high: "high（高）",
+  medium: "medium（中）",
+  low: "low（低）",
+  transparent: "transparent（透明）",
+  opaque: "opaque（不透明）",
+};
+
+// 需要本地化的 5 个协议/基本参数下拉（model 是远端动态列表，不本地化）
+const LOCALIZED_COMBOS = ["protocol", "quality", "output_format", "background", "moderation"];
+
+// 把指定 combo 的 values 换成中文标签对象；已是对象形态（已本地化）则跳过，
+// 无中文映射的值保持原样。任何失败静默（显示层绝不反噬节点功能）。
+function localizeCombo(node, name) {
+  try {
+    const w = findWidget(node, name);
+    const vals = w?.options?.values;
+    if (!Array.isArray(vals) || !vals.every((v) => typeof v === "string")) return;
+    const mapped = vals.map((v) => (ZH_COMBO_LABELS[v] ? { content: ZH_COMBO_LABELS[v], value: v } : v));
+    if (mapped.some((m) => typeof m === "object")) w.options.values = mapped;
+  } catch {
+    /* 静默失败 */
+  }
+}
+
+function localizeCombos(node) {
+  for (const name of LOCALIZED_COMBOS) localizeCombo(node, name);
+}
+
 // “参数模板”按钮回调：按当前协议把模板 JSON 骨架写入 params 文本域。
 // 旧工作流可能没有 params 控件——此时静默无操作；protocol 缺失时默认 openai（与 fetchModels 一致）
 function applyParamsTemplate(node) {
@@ -142,10 +178,18 @@ app.registerExtension({
   beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== NODE_CLASS) return;
 
-    // 节点创建后追加按钮 widget（保留并先执行原始 onNodeCreated）
+    // 节点创建后追加按钮 widget（v0.3.1：上游扩展异常已隔离，按钮必达）
     const origOnNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function (...args) {
-      const r = origOnNodeCreated?.apply(this, args);
+      // v0.3.1 修复：上游扩展（注册在本扩展之前的其他节点包）若在其 onNodeCreated
+      // 中抛异常（如环境里抛 clipboard 错误的 LLM 包），曾一并带走本节点按钮。
+      // 现在隔离为 console.error，保证下方按钮与本地化始终执行。
+      let r;
+      try {
+        r = origOnNodeCreated?.apply(this, args);
+      } catch (e) {
+        console.error("[OpenAPI] 上游扩展的 onNodeCreated 抛出异常（已隔离，本节点按钮不受影响）:", e);
+      }
       const w = this.addWidget("button", "获取模型列表", null, () => {
         fetchModels(this, w);
       });
@@ -157,20 +201,28 @@ app.registerExtension({
       });
       tplW.name = "Params Template"; // 供测试按 name 查找
 
+      // v0.3.1：protocol/基本参数下拉应用中文标签（值不变，纯显示层）
+      localizeCombos(this);
+
       // v0.3：包装 protocol 控件回调——切换协议后联动刷新 size 占位提示。
-      // finally 保证原回调抛错时占位符仍会刷新；原回调的异常照常向外传播（行为不变）
+      // v0.3.1：上游回调异常同样隔离（不再向外传播打断交互）
       const node = this;
-      const protoW = findWidget(this, "protocol");
-      if (protoW) {
-        const origProtoCb = protoW.callback;
-        protoW.callback = function (...cbArgs) {
-          try {
-            origProtoCb?.apply(this, cbArgs);
-          } finally {
+      try {
+        const protoW = findWidget(this, "protocol");
+        if (protoW) {
+          const origProtoCb = protoW.callback;
+          protoW.callback = function (...cbArgs) {
+            try {
+              origProtoCb?.apply(this, cbArgs);
+            } catch (e) {
+              console.error("[OpenAPI] protocol 上游回调抛出异常（已隔离）:", e);
+            }
             syncSizePlaceholder(node, cbArgs[0]);
-          }
-        };
-        syncSizePlaceholder(node, protoW.value); // 创建时按当前协议初始化占位符
+          };
+          syncSizePlaceholder(node, protoW.value); // 创建时按当前协议初始化占位符
+        }
+      } catch (e) {
+        console.error("[OpenAPI] protocol 回调包装失败（不影响节点功能）:", e);
       }
       return r;
     };
@@ -178,9 +230,17 @@ app.registerExtension({
     // 加载配置后按 base_url 从缓存预填 api_key（尽力而为，失败静默）
     const origOnConfigure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function (info) {
-      const r = origOnConfigure?.apply(this, arguments);
-      // v0.3：litegraph 恢复 widgets_values 时不触发控件回调，故加载工作流后
-      // 按还原的 protocol 值补一次 size 占位符刷新（syncSizePlaceholder 内部全静默）
+      // v0.3.1：同 onNodeCreated——隔离上游 onConfigure 异常，本钩子后续步骤必达
+      let r;
+      try {
+        r = origOnConfigure?.apply(this, arguments);
+      } catch (e) {
+        console.error("[OpenAPI] 上游扩展的 onConfigure 抛出异常（已隔离）:", e);
+      }
+      // v0.3.1：litegraph 恢复 widgets_values 时不触发控件回调，且节点定义刷新
+      // 会把 options.values 重置回后端纯字符串——故加载工作流后补做一次
+      // 中文标签本地化 + 按还原 protocol 值刷新 size 占位符（内部均全静默）
+      localizeCombos(this);
       syncSizePlaceholder(this, findWidget(this, "protocol")?.value);
       (async () => {
         try {
