@@ -373,12 +373,54 @@ def test_generate_image_rejects_unknown_protocol():
     assert "protocol" in str(exc_info.value)
 
 
-def test_input_types_protocol_widget_exists_and_is_last_key():
+def test_input_types_protocol_is_seventh_key_and_widgets_append_after():
+    # v0.3 规格演进（有意为之）：基本参数控件加入后，向后兼容规则从
+    # 「protocol 是最后一个键」修订为「protocol 固定第 7 位、新控件一律追加
+    # 在 protocol 之后、未来新增只能追加在 count 之后」。旧工作流 widgets_values
+    # 的前 7 个索引因此永不变迁。
     required = OpenAPIImageGenerator.INPUT_TYPES()["required"]
     # Then: protocol COMBO 选项固定为 ["openai","dashscope"]（openai 在前）
     assert required["protocol"][0] == ["openai", "dashscope"]
-    # Then: 必须是最后一个键——控件排布向后兼容（旧工作流字段顺序不变）
-    assert list(required)[-1] == "protocol"
+    # Then: 共 14 键（既有 7 键 + 基本参数 7 控件）、protocol 第 7 位（索引 6）、count 收尾
+    assert len(required) == 14
+    assert list(required)[6] == "protocol"
+    assert list(required)[-1] == "count"
+    assert list(required) == [
+        "base_url",
+        "api_key",
+        "model",
+        "prompt",
+        "system_prompt",
+        "params",
+        "protocol",
+        "size",
+        "quality",
+        "output_format",
+        "background",
+        "moderation",
+        "negative_prompt",
+        "count",
+    ]
+
+
+def test_input_types_basic_widgets_types_and_defaults():
+    required = OpenAPIImageGenerator.INPUT_TYPES()["required"]
+    # Then: size 为 STRING、默认空、带示例 placeholder
+    assert required["size"][0] == "STRING"
+    assert required["size"][1]["default"] == ""
+    assert "1024x1024" in required["size"][1]["placeholder"]
+    # Then: 四个 COMBO 均把空串放在第一位（留空=不发送）且选项精确
+    assert required["quality"][0] == ["", "auto", "high", "medium", "low"]
+    assert required["output_format"][0] == ["", "png", "jpeg", "webp"]
+    assert required["background"][0] == ["", "auto", "transparent", "opaque"]
+    assert required["moderation"][0] == ["", "auto", "low"]
+    for key in ("quality", "output_format", "background", "moderation"):
+        assert required[key][1]["default"] == ""
+    # Then: negative_prompt 多行文本、count 为 1-10 的 INT
+    assert required["negative_prompt"][0] == "STRING"
+    assert required["negative_prompt"][1]["multiline"] is True
+    assert required["count"][0] == "INT"
+    assert required["count"][1] == {"default": 1, "min": 1, "max": 10, "step": 1}
 
 
 def test_input_types_dashscope_protocol_lists_catalog(tmp_path, monkeypatch):
@@ -410,3 +452,207 @@ def test_input_types_openai_base_url_no_catalog_leak(mock_server, tmp_path, monk
     types = OpenAPIImageGenerator.INPUT_TYPES(base_url=mock_server.base_url)
     # Then: 选项精确等于缓存列表——base_url+openai 分支绝不混入 DashScope 目录
     assert types["required"]["model"][0] == ["mock-b64", "mock-url"]
+
+
+# ---------- v0.3 交互式基本参数（端到端 · 全本地校验先于网络） ----------
+
+
+def test_basic_widgets_all_defaults_openai_body_identical_to_v02(mock_server):
+    # Given: 基本参数全部走默认值（不传新 kwargs）+ params 为空
+    gen = OpenAPIImageGenerator()
+    gen.generate_image(
+        base_url=mock_server.base_url,
+        api_key="k",
+        model="mock-b64",
+        prompt="a red square",
+        system_prompt="",
+        params="",
+    )
+    # Then: openai 请求体与 v0.2 逐键一致（仅基础三键，无任何控件派生键）
+    body = _last_request(mock_server)
+    assert body == {"model": "mock-b64", "prompt": "a red square", "response_format": "b64_json"}
+
+
+def test_basic_widgets_all_defaults_dashscope_body_identical_to_v02(mock_server):
+    gen = OpenAPIImageGenerator()
+    gen.generate_image(
+        base_url=mock_server.base_url,
+        api_key="k",
+        model="qwen-image-3.0-pro",
+        prompt="a red square",
+        system_prompt="",
+        params="",
+        protocol="dashscope",
+    )
+    # Then: dashscope 请求体与 v0.2 逐键一致且绝不出现 parameters 键
+    body = _last_native_request(mock_server)
+    assert body == {
+        "model": "qwen-image-3.0-pro",
+        "input": {"messages": [{"role": "user", "content": [{"text": "a red square"}]}]},
+    }
+    assert "parameters" not in body
+
+
+def test_basic_size_widget_normalized_for_openai(mock_server):
+    # Given: 用户用 dashscope 风格的 * 形式输入 size
+    gen = OpenAPIImageGenerator()
+    gen.generate_image(
+        base_url=mock_server.base_url,
+        api_key="k",
+        model="mock-b64",
+        prompt="a red square",
+        system_prompt="",
+        params="",
+        size="1664*928",
+        quality="high",
+    )
+    # Then: openai 正典 WxH 归一后随 quality 一起进入顶层
+    body = _last_request(mock_server)
+    assert body["size"] == "1664x928"
+    assert body["quality"] == "high"
+
+
+def test_basic_size_widget_normalized_for_dashscope(mock_server):
+    gen = OpenAPIImageGenerator()
+    gen.generate_image(
+        base_url=mock_server.base_url,
+        api_key="k",
+        model="qwen-image-3.0-pro",
+        prompt="a red square",
+        system_prompt="",
+        params="",
+        protocol="dashscope",
+        size="1664X928",
+        negative_prompt="blurry",
+    )
+    # Then: dashscope 正典 W*H 归一、negative_prompt 落入 parameters
+    body = _last_native_request(mock_server)
+    assert body["parameters"]["size"] == "1664*928"
+    assert body["parameters"]["negative_prompt"] == "blurry"
+    assert "n" not in body["parameters"]  # count=1 默认 → 不发送
+
+
+def test_basic_count_widget_omitted_at_one_and_emitted_at_two(mock_server):
+    gen = OpenAPIImageGenerator()
+    gen.generate_image(
+        base_url=mock_server.base_url,
+        api_key="k",
+        model="mock-b64",
+        prompt="a red square",
+        system_prompt="",
+        params="",
+    )
+    assert "n" not in _last_request(mock_server)
+    gen.generate_image(
+        base_url=mock_server.base_url,
+        api_key="k",
+        model="mock-b64",
+        prompt="a red square",
+        system_prompt="",
+        params="",
+        count=2,
+    )
+    assert _last_request(mock_server)["n"] == 2
+
+
+def test_params_json_overrides_same_name_widget_via_node(mock_server):
+    # Given: 控件与 JSON 同名（size）——用户网关先例：JSON 的 2048*1152 必须原样胜出
+    gen = OpenAPIImageGenerator()
+    gen.generate_image(
+        base_url=mock_server.base_url,
+        api_key="k",
+        model="mock-b64",
+        prompt="a red square",
+        system_prompt="",
+        params='{"size":"2048*1152","quality":"high"}',
+        size="1024x1024",
+        quality="low",
+    )
+    body = _last_request(mock_server)
+    # Then: JSON 优先且逐字节透传（* 不被改写为 x）
+    assert body["size"] == "2048*1152"
+    assert body["quality"] == "high"
+
+
+def test_invalid_widget_size_rejected_before_any_network(mock_server):
+    # Given: 非法 size 形状 + 全默认其余控件
+    before = _fingerprint(_last_request(mock_server))
+    gen = OpenAPIImageGenerator()
+    with pytest.raises(ValueError) as exc_info:
+        gen.generate_image(
+            base_url=mock_server.base_url,
+            api_key="k",
+            model="mock-b64",
+            prompt="a red square",
+            system_prompt="",
+            params="",
+            size="1024 by 1024",
+        )
+    # Then: 固定前缀 + 格式提示，且零网络副作用
+    msg = str(exc_info.value)
+    assert "OpenAPI Image Generator" in msg
+    assert "Invalid size" in msg
+    assert _fingerprint(_last_request(mock_server)) == before
+
+
+def test_openai_only_widgets_rejected_under_dashscope_before_network(mock_server):
+    before = _fingerprint(_last_native_request(mock_server))
+    gen = OpenAPIImageGenerator()
+    with pytest.raises(ValueError) as exc_info:
+        gen.generate_image(
+            base_url=mock_server.base_url,
+            api_key="k",
+            model="qwen-image-3.0-pro",
+            prompt="a red square",
+            system_prompt="",
+            params="",
+            protocol="dashscope",
+            quality="high",
+            moderation="low",
+        )
+    msg = str(exc_info.value)
+    # Then: 报错点名全部违规控件并指引改走 params JSON
+    assert "OpenAPI Image Generator" in msg
+    assert "quality" in msg
+    assert "moderation" in msg
+    assert "params JSON" in msg
+    assert _fingerprint(_last_native_request(mock_server)) == before
+
+
+def test_dashscope_only_negative_prompt_rejected_under_openai_before_network(mock_server):
+    before = _fingerprint(_last_request(mock_server))
+    gen = OpenAPIImageGenerator()
+    with pytest.raises(ValueError) as exc_info:
+        gen.generate_image(
+            base_url=mock_server.base_url,
+            api_key="k",
+            model="mock-b64",
+            prompt="a red square",
+            system_prompt="",
+            params="",
+            negative_prompt="ugly hands",
+        )
+    msg = str(exc_info.value)
+    assert "OpenAPI Image Generator" in msg
+    assert "negative_prompt" in msg
+    assert _fingerprint(_last_request(mock_server)) == before
+
+
+def test_auto_size_rejected_under_dashscope_before_network(mock_server):
+    before = _fingerprint(_last_native_request(mock_server))
+    gen = OpenAPIImageGenerator()
+    with pytest.raises(ValueError) as exc_info:
+        gen.generate_image(
+            base_url=mock_server.base_url,
+            api_key="k",
+            model="qwen-image-3.0-pro",
+            prompt="a red square",
+            system_prompt="",
+            params="",
+            protocol="dashscope",
+            size="auto",
+        )
+    msg = str(exc_info.value)
+    assert "OpenAPI Image Generator" in msg
+    assert "auto" in msg
+    assert _fingerprint(_last_native_request(mock_server)) == before

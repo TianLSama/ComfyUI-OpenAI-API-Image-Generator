@@ -40,7 +40,9 @@ class OpenAPIImageGenerator:
     """经由 OpenAI 兼容 /images/generations 端点生成图像的 V1 节点。
 
     输入为 Base URL / API Key / 模型 / 提示词 / 系统提示词 / 附加 params
-    JSON；输出为标准 IMAGE 张量 [N, H, W, C] float32、取值 [0, 1]。
+    JSON / 协议 + 交互式基本参数控件（size / quality / output_format /
+    background / moderation / negative_prompt / count，留空即不发送）；
+    输出为标准 IMAGE 张量 [N, H, W, C] float32、取值 [0, 1]。
     """
 
     RETURN_TYPES: Final[tuple[str, ...]] = ("IMAGE",)
@@ -52,6 +54,15 @@ class OpenAPIImageGenerator:
         "先在「获取模型列表」按钮拉取模型，再填写提示词运行；"
         "附加参数以 JSON 形式填入 params 字段，model/prompt 两键不可覆盖。"
         "v0.2 起支持 protocol 协议选择：openai（兼容端点）或 dashscope（阿里云百炼原生 multimodal-generation）。"
+        "新增交互式基本参数控件（全部可选，留空=不发送）："
+        "openai 协议支持 size / quality / output_format / background / moderation / count(→n)，"
+        "dashscope 协议支持 size / negative_prompt / count(→parameters.n)，quality 等 openai 专属控件在 "
+        "dashscope 下会被拒绝（可改走 params JSON）。"
+        "size 语法：openai 用 1024x1024，dashscope 用 1024*1024（x 与 * 均接受并自动归一为协议正典形式；"
+        "'auto' 仅 openai 支持）。"
+        "与 params JSON 同名时 JSON 优先（JSON 为高级通道）。"
+        "无专属控件的高级参数仅能经 params JSON 传入，如 input_fidelity、output_compression、"
+        "prompt_extend、watermark。"
     )
 
     @classmethod
@@ -115,9 +126,23 @@ class OpenAPIImageGenerator:
                     "placeholder": 'JSON 参数，如 {"size":"1024x1024"}',
                 },
             ),
-            # protocol 必须是最后一个键：旧工作流的 widgets_values 按索引映射，
-            # 新控件追加在尾部才能保证向后兼容。
+            # 向后兼容规则（自基本参数控件加入后修订）：protocol 固定保持在
+            # 第 7 位（索引 6）——旧工作流的 widgets_values 按索引映射，前 7
+            # 键的顺序永不可变；基本参数控件一律追加在 protocol 之后，未来
+            # 新增控件只能继续追加在 count 之后。
             "protocol": (_PROTOCOLS, {"default": protocol or "openai"}),
+            # ↓ 交互式基本参数：默认值全为空/1 = 不发送任何键，请求体与
+            #   v0.2 逐键一致；与 params JSON 同名时 JSON 优先（高级通道）。
+            "size": (
+                "STRING",
+                {"default": "", "placeholder": "如 1024x1024 / 1664*928 / auto；留空=走 params JSON"},
+            ),
+            "quality": (["", "auto", "high", "medium", "low"], {"default": ""}),
+            "output_format": (["", "png", "jpeg", "webp"], {"default": ""}),
+            "background": (["", "auto", "transparent", "opaque"], {"default": ""}),
+            "moderation": (["", "auto", "low"], {"default": ""}),
+            "negative_prompt": ("STRING", {"default": "", "multiline": True}),
+            "count": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
         }
         return {"required": required}
 
@@ -135,12 +160,22 @@ class OpenAPIImageGenerator:
         system_prompt: str,
         params: str,
         protocol: str = "openai",
+        size: str = "",
+        quality: str = "",
+        output_format: str = "",
+        background: str = "",
+        moderation: str = "",
+        negative_prompt: str = "",
+        count: int = 1,
     ) -> tuple[torch.Tensor]:
         """校验 → 按协议组请求体 → 调远端 → 解析解码 → 返回 IMAGE 张量 1-tuple。
 
         全部本地校验必须先于任何网络调用发生（含非法 protocol 的即时拒绝）；
-        网络之后，OpenAPIError 家族（含远端 401、200-带错误等）一律转译为
-        带固定前缀的 ValueError，原始英文消息原样透出以便用户排障。
+        基本参数控件的「是否已设置」判定、协议适配校验与 size 归一化全部
+        下沉在 parsing / dashscope 的纯函数内（同样先于网络调用），本方法
+        只把控件值原样打包传递；网络之后，OpenAPIError 家族（含远端 401、
+        200-带错误等）一律转译为带固定前缀的 ValueError，原始英文消息原样
+        透出以便用户排障。
         """
         if protocol not in _PROTOCOLS:
             raise _user_error(f"不支持的协议 / unsupported protocol: {protocol!r}，可选 {_PROTOCOLS}")
@@ -151,16 +186,27 @@ class OpenAPIImageGenerator:
         if not prompt or not prompt.strip():
             raise _user_error("提示词为空：请描述要生成的图像 / prompt is empty")
 
+        # 控件值原样打包：语义（trim 判定 / 协议适配 / size 归一 / 键名映射 /
+        # JSON 覆盖优先级）全部由协议侧纯函数负责，本方法不解释任何值。
+        basic_params: dict[str, object] = {
+            "size": size,
+            "quality": quality,
+            "output_format": output_format,
+            "background": background,
+            "moderation": moderation,
+            "negative_prompt": negative_prompt,
+            "count": count,
+        }
         try:
             full_prompt = parsing.apply_system_prompt(prompt, system_prompt)
             if protocol == "dashscope":
                 # 原生分支：仅复用 apply_system_prompt 与末尾解码/张量转换，
                 # 请求体组装与响应抽取走 cfoapi.dashscope 纯函数。
-                body = dashscope.build_dashscope_request(full_prompt, model, params)
+                body = dashscope.build_dashscope_request(full_prompt, model, params, basic_params)
                 response = client.generate_images_dashscope(base_url, api_key, body)
                 items = dashscope.extract_dashscope_image_items(response)
             else:
-                body = parsing.build_request_body(full_prompt, model, params)
+                body = parsing.build_request_body(full_prompt, model, params, basic_params=basic_params)
                 response = client.generate_images(base_url, api_key, body)
                 items = parsing.extract_image_items(response)
             images = [imaging.decode_image_bytes(client.resolve_image_bytes(item)) for item in items]

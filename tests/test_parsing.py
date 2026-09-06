@@ -13,10 +13,27 @@ from cfoapi.parsing import (
     ImageItem,
     apply_system_prompt,
     build_request_body,
+    collect_set_widgets,
     extract_image_items,
+    normalize_size,
     parse_error_envelope,
     parse_model_list,
 )
+
+
+def _basic(**overrides: object) -> dict[str, object]:
+    """构造与 INPUT_TYPES 默认值一致的基本参数映射（控件全空 / count=1）。"""
+    base: dict[str, object] = {
+        "size": "",
+        "quality": "",
+        "output_format": "",
+        "background": "",
+        "moderation": "",
+        "negative_prompt": "",
+        "count": 1,
+    }
+    base.update(overrides)
+    return base
 
 
 # ---------- parse_model_list ----------
@@ -199,3 +216,123 @@ def test_apply_system_prompt_returns_prompt_when_system_empty() -> None:
 def test_apply_system_prompt_returns_prompt_when_system_whitespace() -> None:
     # Then: 纯空白 system 视作空，prompt 不变
     assert apply_system_prompt("user", "   ") == "user"
+
+
+# ---------- normalize_size（v0.3 基本参数控件 · size 归一化） ----------
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["1024x1024", "1024X1024", "1024*1024", "1024×1024", "1024 ✕ 1024", "1024 ✖ 1024", "  1024 x 1024  "],
+)
+def test_normalize_size_accepts_all_separator_and_whitespace_shapes(raw: str) -> None:
+    # When/Then: 六种分隔符与两侧空白均被接受，输出按协议分隔符归一
+    assert normalize_size(raw, "x") == "1024x1024"
+    assert normalize_size(raw, "*") == "1024*1024"
+
+
+def test_normalize_size_passes_auto_through_case_insensitively() -> None:
+    # Then: 'auto'（含大小写与外围空白）原样返回小写 'auto'，由协议侧决定放行与否
+    assert normalize_size("auto", "x") == "auto"
+    assert normalize_size(" Auto ", "x") == "auto"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["1024", "10x", "x10", "1x2", "123456x1024", "1024+1024", "wide", "1024 x", "autox", "1024x1024x1024"],
+)
+def test_normalize_size_rejects_invalid_shapes_with_format_hint(raw: str) -> None:
+    # When/Then: 非尺寸非 auto → 配置错误且消息含格式提示
+    with pytest.raises(OpenAPIConfigError) as exc_info:
+        normalize_size(raw, "x")
+    assert "Invalid size" in str(exc_info.value)
+    assert "1024x1024" in str(exc_info.value)
+
+
+# ---------- collect_set_widgets（「已设置」判定） ----------
+
+
+def test_collect_set_widgets_keeps_only_set_controls() -> None:
+    # Given: 空白/空串控件与 count=1 均未设置，其余为已设置
+    entries = collect_set_widgets(
+        _basic(size=" 1024x1024 ", quality="", output_format="png", background="   ", negative_prompt="ugly")
+    )
+    # Then: 仅保留 trim 后非空的字符串控件；值已 trim
+    assert entries == {"size": "1024x1024", "output_format": "png", "negative_prompt": "ugly"}
+
+
+def test_collect_set_widgets_count_semantics_and_empty_input() -> None:
+    # Then: count>1 才算已设置；count=1 / None / 空映射 → 无贡献
+    assert collect_set_widgets(_basic(count=2)) == {"count": 2}
+    assert collect_set_widgets(_basic()) == {}
+    assert collect_set_widgets(None) == {}
+    assert collect_set_widgets({}) == {}
+
+
+# ---------- build_request_body × basic_params（openai 侧语义） ----------
+
+
+def test_build_request_body_maps_widgets_to_openai_top_level_keys() -> None:
+    # When: 除 negative_prompt 外全部控件设置（size 用 * 形式输入，验证归一为 x）
+    body = build_request_body(
+        "p",
+        "m",
+        "",
+        basic_params=_basic(
+            size="1664*928",
+            quality="high",
+            output_format="webp",
+            background="transparent",
+            moderation="low",
+            count=3,
+        ),
+    )
+    # Then: 控件→顶层键（count→n），size 归一为协议正典 WxH
+    assert body["size"] == "1664x928"
+    assert body["quality"] == "high"
+    assert body["output_format"] == "webp"
+    assert body["background"] == "transparent"
+    assert body["moderation"] == "low"
+    assert body["n"] == 3
+
+
+def test_build_request_body_all_defaults_is_identical_to_v02() -> None:
+    # Then: 全默认控件 + 空 params → 请求体与 v0.2 逐键一致（回归契约）
+    expected = {"model": "m", "prompt": "p", "response_format": "b64_json"}
+    assert build_request_body("p", "m", "", basic_params=_basic()) == expected
+    assert build_request_body("p", "m", "", basic_params=None) == expected
+
+
+def test_build_request_body_json_overrides_same_name_widget_keys() -> None:
+    # Given: 控件与 JSON 同名（size），且 JSON 值是非规范形式
+    # When/Then: JSON 优先且逐字节透传（不归一、不改写）
+    body = build_request_body("p", "m", '{"size":"2048*1152"}', basic_params=_basic(size="1024x1024"))
+    assert body["size"] == "2048*1152"
+
+
+def test_build_request_body_widgets_fill_gaps_json_channel_keeps_working() -> None:
+    # When: 控件提供 quality，JSON 提供无控件的高级键
+    body = build_request_body("p", "m", '{"watermark":false}', basic_params=_basic(quality="low"))
+    # Then: 两通道并存互不干扰
+    assert body["quality"] == "low"
+    assert body["watermark"] is False
+
+
+def test_build_request_body_rejects_dashscope_only_negative_prompt() -> None:
+    # When/Then: openai 协议下 negative_prompt 控件被设置 → 协议错配报错并点名控件
+    with pytest.raises(OpenAPIConfigError) as exc_info:
+        build_request_body("p", "m", "", basic_params=_basic(negative_prompt="ugly hands"))
+    assert "negative_prompt" in str(exc_info.value)
+
+
+def test_build_request_body_json_channel_allows_negative_prompt() -> None:
+    # Then: JSON 通道不受限——openai 用户仍可经 params 传 negative_prompt
+    body = build_request_body("p", "m", '{"negative_prompt":"blurry"}')
+    assert body["negative_prompt"] == "blurry"
+
+
+def test_build_request_body_invalid_widget_size_raises_even_without_params() -> None:
+    # When/Then: 控件 size 非法 → 报错含格式提示（哪怕 params 为空）
+    with pytest.raises(OpenAPIConfigError) as exc_info:
+        build_request_body("p", "m", "", basic_params=_basic(size="1024 by 1024"))
+    assert "Invalid size" in str(exc_info.value)

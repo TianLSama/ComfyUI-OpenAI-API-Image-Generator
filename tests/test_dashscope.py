@@ -172,3 +172,108 @@ def test_extract_output_without_images_raises() -> None:
     }
     with pytest.raises(MalformedResponseError):
         extract_dashscope_image_items(payload)
+
+
+# ---------- build_dashscope_request × basic_params（v0.3 基本参数控件） ----------
+
+
+def _basic(**overrides: object) -> dict[str, object]:
+    """构造与 INPUT_TYPES 默认值一致的基本参数映射（控件全空 / count=1）。"""
+    base: dict[str, object] = {
+        "size": "",
+        "quality": "",
+        "output_format": "",
+        "background": "",
+        "moderation": "",
+        "negative_prompt": "",
+        "count": 1,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_build_with_all_default_widgets_is_identical_to_v02() -> None:
+    # Then: 全默认控件 + 空 params → 与 v0.2 逐键一致且绝不出现 parameters 键
+    assert build_dashscope_request("p", "qwen-image-plus", "", basic_params=_basic()) == {
+        "model": "qwen-image-plus",
+        "input": {"messages": [{"role": "user", "content": [{"text": "p"}]}]},
+    }
+    # None 与空映射等价
+    assert build_dashscope_request("p", "qwen-image-plus", "", basic_params=None) == build_dashscope_request(
+        "p", "qwen-image-plus", ""
+    )
+
+
+def test_build_empty_params_object_keeps_verbatim_parameters_attachment() -> None:
+    # Given/Then: params 为 "{}"（非空串）时 parameters 仍原样挂空对象——v0.2 行为不变
+    body = build_dashscope_request("p", "qwen-image-plus", "{}")
+    assert body["parameters"] == {}
+
+
+def test_build_widgets_land_in_parameters_with_dashscope_canonicals() -> None:
+    # When: dashscope 支持的三个控件全部设置（size 用 x 形式输入，验证归一为 *）
+    body = build_dashscope_request(
+        "p",
+        "qwen-image-3.0-pro",
+        "",
+        basic_params=_basic(size="1664x928", negative_prompt="ugly hands", count=2),
+    )
+    # Then: 控件→parameters 子键（count→n），size 归一为协议正典 W*H
+    assert body["parameters"] == {"size": "1664*928", "negative_prompt": "ugly hands", "n": 2}
+
+
+def test_build_count_one_omitted_but_count_two_emitted() -> None:
+    # Then: count=1（默认）完全不产生 parameters 键；count=2 才发 n=2
+    assert "parameters" not in build_dashscope_request("p", "qwen-image-plus", "", basic_params=_basic(count=1))
+    body = build_dashscope_request("p", "qwen-image-plus", "", basic_params=_basic(count=2))
+    assert body["parameters"] == {"n": 2}
+
+
+def test_build_json_overrides_same_name_widget_keys_verbatim() -> None:
+    # When: 控件与 JSON 同名 → JSON 优先且逐字节透传（不经归一化）
+    body = build_dashscope_request(
+        "p", "qwen-image-plus", '{"size":"2048*1152","n":1}', basic_params=_basic(size="1024*1024", count=3)
+    )
+    # Then: size/n 均取 JSON 原值；JSON 独有无名键并入
+    assert body["parameters"] == {"size": "2048*1152", "n": 1}
+    body2 = build_dashscope_request(
+        "p", "qwen-image-plus", '{"prompt_extend":true}', basic_params=_basic(size="512x512")
+    )
+    assert body2["parameters"] == {"size": "512*512", "prompt_extend": True}
+
+
+@pytest.mark.parametrize("widget", ["quality", "output_format", "background", "moderation"])
+def test_build_rejects_openai_only_widgets_under_dashscope(widget: str) -> None:
+    # When/Then: openai 专属控件被设置 → 报错点名该控件并指引改走 params JSON
+    with pytest.raises(OpenAPIConfigError) as exc_info:
+        build_dashscope_request("p", "qwen-image-plus", "", basic_params=_basic(**{widget: "auto"}))
+    msg = str(exc_info.value)
+    assert widget in msg
+    assert "dashscope" in msg
+    assert "params JSON" in msg
+
+
+def test_build_error_lists_all_offending_openai_only_widgets() -> None:
+    # When: 多个违规控件同时设置
+    with pytest.raises(OpenAPIConfigError) as exc_info:
+        build_dashscope_request(
+            "p", "qwen-image-plus", "", basic_params=_basic(quality="high", moderation="low")
+        )
+    # Then: 消息把违规控件全部点名
+    msg = str(exc_info.value)
+    assert "quality" in msg
+    assert "moderation" in msg
+
+
+def test_build_rejects_auto_size_under_dashscope() -> None:
+    # When/Then: 'auto' 仅 openai 支持 → dashscope 下报错
+    with pytest.raises(OpenAPIConfigError) as exc_info:
+        build_dashscope_request("p", "qwen-image-plus", "", basic_params=_basic(size="auto"))
+    assert "auto" in str(exc_info.value)
+
+
+def test_build_rejects_invalid_widget_size_under_dashscope() -> None:
+    # When/Then: 非法 size 形状报错含格式提示
+    with pytest.raises(OpenAPIConfigError) as exc_info:
+        build_dashscope_request("p", "qwen-image-plus", "", basic_params=_basic(size="1024 by 1024"))
+    assert "Invalid size" in str(exc_info.value)
